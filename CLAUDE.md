@@ -14,6 +14,30 @@ When building it, treat the submodule as a read-only content source: the server'
 those documents discoverable and retrievable (as MCP resources and/or search/retrieval tools),
 not to modify them.
 
+## Commands
+
+```bash
+npm install                 # install deps
+npm run build-index         # (re)build data/index.json from the submodule — run after submodule updates
+npm run start:stdio         # run MCP server over stdio (local agents)
+npm run start:http          # run MCP server over HTTP on :3000/mcp
+npm test                    # vitest run (all tests)
+npx vitest run src/core/tools.test.ts   # run a single test file
+npm run typecheck           # tsc --noEmit
+```
+
+The server loads `data/index.json` at startup and fails fast with a "run build-index" hint if it
+is missing. `data/` is gitignored.
+
+## Server architecture
+
+`src/core/` is a transport-agnostic core: `corpus.ts` walks the submodule, `pdf.ts` extracts PDF
+text, `state.ts` builds an in-memory MiniSearch index from a saved `data/index.json`, and
+`tools.ts` implements the five tools as pure `(CorpusState, …) -> string` functions (errors are
+returned as strings prefixed `ERROR:`, never thrown). `src/server.ts` registers those tools plus
+one MCP resource per Phase 1 spec; `src/stdio.ts` and `src/http.ts` are thin entrypoints that load
+the corpus once and share it.
+
 ## Working with the submodule
 
 The corpus lives in the `zenon-developer-commons/` submodule. Standard submodule workflow applies:
