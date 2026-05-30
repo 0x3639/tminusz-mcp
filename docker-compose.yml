@@ -1,0 +1,25 @@
+services:
+  zenon-docs-mcp:
+    build: .
+    image: tminusz-mcp
+    container_name: zenon-docs-mcp
+    # NOTE: the /mcp endpoint is UNAUTHENTICATED. Binding to 127.0.0.1 keeps it
+    # local-only. Override the host port if 3000 is taken: HOST_PORT=8765 docker compose up.
+    # To expose it on the network, set HOST_PORT and drop the 127.0.0.1 prefix, then
+    # put an authenticating reverse proxy in front of it.
+    ports:
+      - "127.0.0.1:${HOST_PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+    restart: unless-stopped
+    healthcheck:
+      # Node 22 has global fetch; POST an MCP initialize and require a 2xx.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/mcp',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'health',version:'0'}}})}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
