@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildState, searchState, makeSnippet } from "./state.js";
+import { buildState, searchState, makeSnippet, saveCorpus, loadCorpus } from "./state.js";
 import type { IndexedDoc } from "./types.js";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 const docs: IndexedDoc[] = [
   { path: "docs/notes/pillars.md", section: "notes", type: "md", title: "Pillars", body: "Pillars sign momentums and participate in consensus quorums." },
@@ -38,5 +41,20 @@ describe("makeSnippet", () => {
     const snip = makeSnippet("alpha beta gamma DELTA epsilon", "delta", 8);
     expect(snip.toLowerCase()).toContain("delta");
     expect(snip).not.toContain("\n");
+  });
+});
+
+describe("saveCorpus + loadCorpus round-trip", () => {
+  it("writes docs to JSON and reloads a working searchable state", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "zenon-idx-"));
+    const file = path.join(dir, "index.json");
+    saveCorpus(file, docs);
+    const reloaded = loadCorpus(file);
+    expect(reloaded.docs).toHaveLength(3);
+    expect(searchState(reloaded, "consensus")[0]?.path).toBe("docs/notes/pillars.md");
+  });
+
+  it("throws a build-index hint when the file is missing", () => {
+    expect(() => loadCorpus("/no/such/index.json")).toThrow(/build-index/);
   });
 });

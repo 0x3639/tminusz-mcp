@@ -1,5 +1,7 @@
 import MiniSearch from "minisearch";
 import type { CorpusState, Hit, IndexedDoc } from "./types.js";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import path from "node:path";
 
 export const MS_OPTIONS = {
   idField: "path",
@@ -28,6 +30,22 @@ export function makeSnippet(body: string, query: string, radius = 160): string {
   const end = Math.min(body.length, idx + radius);
   const snip = body.slice(start, end).replace(/\s+/g, " ").trim();
   return (start > 0 ? "…" : "") + snip + (end < body.length ? "…" : "");
+}
+
+export function saveCorpus(filePath: string, docs: IndexedDoc[]): void {
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  writeFileSync(filePath, JSON.stringify({ docs }), "utf8");
+}
+
+export function loadCorpus(filePath: string): CorpusState {
+  let raw: string;
+  try {
+    raw = readFileSync(filePath, "utf8");
+  } catch {
+    throw new Error(`Index not found at ${filePath}. Run: npm run build-index`);
+  }
+  const parsed = JSON.parse(raw) as { docs: IndexedDoc[] };
+  return buildState(parsed.docs);
 }
 
 export function searchState(
