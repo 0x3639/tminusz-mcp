@@ -9,10 +9,10 @@ This repo (`tminusz-mcp`) is the home for an **MCP server** that exposes the
 corpus as context for LLM clients. The corpus is vendored as a git **submodule** at
 `zenon-developer-commons/`.
 
-As of this writing the repo contains **only the submodule** — no MCP server code exists yet.
-When building it, treat the submodule as a read-only content source: the server's job is to make
-those documents discoverable and retrievable (as MCP resources and/or search/retrieval tools),
-not to modify them.
+The server is implemented in TypeScript under `src/` (see **Commands** and **Server architecture**
+below). Treat the submodule as a read-only content source: the server's job is to make those
+documents discoverable and retrievable (as MCP resources and search/retrieval tools), not to
+modify them.
 
 ## Commands
 
