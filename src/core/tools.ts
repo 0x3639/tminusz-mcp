@@ -1,4 +1,4 @@
-import type { CorpusState } from "./types.js";
+import type { CorpusState, IndexedDoc } from "./types.js";
 import { searchState } from "./state.js";
 
 export const SECTIONS = [
@@ -76,43 +76,94 @@ function isHostileReview(p: string): boolean {
   return p.toLowerCase().includes("hostile review");
 }
 
-export function getPhase1Spec(state: CorpusState, n: number): string {
-  const specs = state.docs
-    .filter(
-      (d) =>
-        d.section === "phase1" &&
-        d.type === "md" &&
-        !isHostileReview(d.path) &&
-        phase1Number(d.path) !== null,
-    )
-    .sort((a, b) => phase1Number(a.path)! - phase1Number(b.path)!);
+export function isPhase1Spec(doc: IndexedDoc): boolean {
+  const file = (doc.path.split("/").pop() ?? "").toLowerCase();
+  return (
+    doc.section === "phase1" &&
+    doc.type === "md" &&
+    !isHostileReview(doc.path) &&
+    file !== "readme.md"
+  );
+}
 
+export function getPhase1Spec(state: CorpusState, selector: number | string): string {
+  const specs = state.docs.filter(isPhase1Spec);
   if (specs.length === 0) return "ERROR: no Phase 1 specs found in the corpus.";
 
-  const numbers = specs.map((s) => phase1Number(s.path)!);
-  const min = Math.min(...numbers);
-  const max = Math.max(...numbers);
-  const spec = specs.find((s) => phase1Number(s.path) === n);
-  if (!spec) return `ERROR: no Phase 1 spec #${n}. Valid range: ${min}–${max}.`;
+  const numbered = specs
+    .filter((d) => phase1Number(d.path) !== null)
+    .sort((a, b) => phase1Number(a.path)! - phase1Number(b.path)!);
+  const namedTitles = specs
+    .filter((d) => phase1Number(d.path) === null)
+    .map((d) => d.title);
 
-  const review = state.docs.find(
-    (d) => d.section === "phase1" && isHostileReview(d.path) && phase1Number(d.path) === n,
-  );
-  const idx = specs.indexOf(spec);
-  const prev = specs[idx - 1];
-  const next = specs[idx + 1];
-  const nav =
-    (prev ? `Previous: #${phase1Number(prev.path)} ${prev.title}` : "Previous: (none)") +
-    " | " +
-    (next ? `Next: #${phase1Number(next.path)} ${next.title}` : "Next: (none)");
+  let spec: IndexedDoc | undefined;
+
+  if (typeof selector === "number") {
+    spec = numbered.find((s) => phase1Number(s.path) === selector);
+    if (!spec) {
+      const min = numbered.length ? Math.min(...numbered.map((s) => phase1Number(s.path)!)) : 0;
+      const max = numbered.length ? Math.max(...numbered.map((s) => phase1Number(s.path)!)) : 0;
+      const named = namedTitles.length ? ` Named specs: ${namedTitles.join(", ")}.` : "";
+      return `ERROR: no Phase 1 spec #${selector}. Valid range: ${min}–${max}.${named}`;
+    }
+  } else {
+    const tokens = selector.toLowerCase().split(/\s+/).filter(Boolean);
+    spec = specs.find((s) =>
+      tokens.every(
+        (t) => s.path.toLowerCase().includes(t) || s.title.toLowerCase().includes(t),
+      ),
+    );
+    if (!spec) {
+      const named = namedTitles.length ? namedTitles.join(", ") : "(none)";
+      return `ERROR: no Phase 1 spec matching "${selector}". Named specs: ${named}.`;
+    }
+  }
+
+  const num = phase1Number(spec.path);
+  let review: IndexedDoc | undefined;
+  if (num !== null) {
+    review = state.docs.find(
+      (d) => d.section === "phase1" && isHostileReview(d.path) && phase1Number(d.path) === num,
+    );
+  } else {
+    const stem = (spec.path.split("/").pop() ?? "")
+      .toLowerCase()
+      .replace(/\.md$/, "")
+      .replace(/\bspec\b/g, "")
+      .split(/[-_\s]+/)
+      .filter(Boolean);
+    review = state.docs.find(
+      (d) =>
+        d.section === "phase1" &&
+        isHostileReview(d.path) &&
+        stem.every((t) => d.path.toLowerCase().includes(t)),
+    );
+  }
+
+  let nav: string;
+  if (num !== null) {
+    const idx = numbered.indexOf(spec);
+    const prev = numbered[idx - 1];
+    const next = numbered[idx + 1];
+    nav =
+      (prev ? `Previous: #${phase1Number(prev.path)} ${prev.title}` : "Previous: (none)") +
+      " | " +
+      (next ? `Next: #${phase1Number(next.path)} ${next.title}` : "Next: (none)");
+  } else {
+    nav = "(named spec — not in the numbered 1–11 sequence)";
+  }
+
+  const heading =
+    num !== null ? `# Phase 1 — Spec #${num}: ${spec.title}` : `# Phase 1 — ${spec.title}`;
 
   return [
-    `# Phase 1 — Spec #${n}: ${spec.title}`,
+    heading,
     nav,
     `\n## Specification (${spec.path})\n\n${spec.body}`,
     review
       ? `\n## Hostile Review (${review.path})\n\n${review.body}`
-      : `\n## Hostile Review\n\n(none found for spec #${n})`,
+      : `\n## Hostile Review\n\n(none found)`,
   ].join("\n");
 }
 
@@ -138,6 +189,8 @@ export function getReadingGuide(): string {
     "9. libp2p Gossip Protocol",
     "10. Current P2P Coexistence and Migration",
     "11. Implementation Readiness Checklist",
+    "",
+    'Dynamic Plasma is also a Phase 1 spec — retrieve it by name: get_phase1_spec("Dynamic Plasma").',
     "",
     "For each spec: read the spec, then its hostile review, then resolve open assumptions before proceeding.",
   ].join("\n");

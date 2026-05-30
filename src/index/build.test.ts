@@ -21,3 +21,14 @@ describe("collectDocs (real corpus, markdown only for speed)", () => {
     expect(out).not.toContain("(none found");
   });
 });
+
+describe("getPhase1Spec named lookup (real corpus)", () => {
+  it("bundles Dynamic Plasma with its hostile review", async () => {
+    const docs = await collectDocs(CORPUS_ROOT, false);
+    const state = buildState(docs);
+    const out = getPhase1Spec(state, "Dynamic Plasma");
+    expect(out).toContain("## Specification");
+    expect(out).toContain("## Hostile Review");
+    expect(out).not.toContain("(none found");
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildState } from "./state.js";
-import { listDocs, searchDocs, readDoc, splitIntoParts, getPhase1Spec, getReadingGuide } from "./tools.js";
+import { listDocs, searchDocs, readDoc, splitIntoParts, getPhase1Spec, getReadingGuide, isPhase1Spec } from "./tools.js";
 import type { IndexedDoc } from "./types.js";
 
 const docs: IndexedDoc[] = [
@@ -77,5 +77,35 @@ describe("getReadingGuide", () => {
     const out = getReadingGuide();
     expect(out).toContain("GREENPAPER");
     expect(out).toContain("11. Implementation Readiness Checklist");
+  });
+});
+
+const dpDocs: IndexedDoc[] = [
+  { path: "docs/specs/phase 1/01-libp2p host spec.md", section: "phase1", type: "md", title: "libp2p Host", body: "transports and gating" },
+  { path: "docs/specs/phase 1/Dynamic Plasma Spec.md", section: "phase1", type: "md", title: "Dynamic Plasma", body: "Plasma meters account-chain throughput." },
+  { path: "docs/specs/phase 1/hostile reviews/dynamic plasma hostile review.md", section: "phase1", type: "md", title: "Dynamic Plasma Hostile Review", body: "Concern: plasma regen edge cases." },
+  { path: "docs/specs/phase 1/README.md", section: "phase1", type: "md", title: "Phase 1", body: "reading order" },
+];
+const dpState = buildState(dpDocs);
+
+describe("getPhase1Spec by name (Dynamic Plasma)", () => {
+  it("returns the named spec bundled with its hostile review", () => {
+    const out = getPhase1Spec(dpState, "Dynamic Plasma");
+    expect(out).toContain("## Specification");
+    expect(out).toContain("Plasma meters account-chain throughput");
+    expect(out).toContain("## Hostile Review");
+    expect(out).toContain("plasma regen edge cases");
+  });
+  it("errors for an unknown name", () => {
+    expect(getPhase1Spec(dpState, "Nonexistent Spec")).toMatch(/^ERROR:/);
+  });
+});
+
+describe("isPhase1Spec", () => {
+  it("includes numbered and named specs, excludes README and hostile reviews", () => {
+    expect(isPhase1Spec(dpDocs[0])).toBe(true);  // numbered spec
+    expect(isPhase1Spec(dpDocs[1])).toBe(true);  // Dynamic Plasma spec
+    expect(isPhase1Spec(dpDocs[2])).toBe(false); // hostile review
+    expect(isPhase1Spec(dpDocs[3])).toBe(false); // README
   });
 });

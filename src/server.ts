@@ -48,8 +48,9 @@ export function createServer(state: CorpusState): McpServer {
   server.registerTool(
     "get_phase1_spec",
     {
-      description: "Return Phase 1 spec #n with its hostile review and reading-order neighbors.",
-      inputSchema: { n: z.number().int().positive() },
+      description:
+        'Return a Phase 1 spec with its hostile review and reading-order neighbors. Pass a number (1–11) or a name, e.g. "Dynamic Plasma".',
+      inputSchema: { n: z.union([z.number().int().positive(), z.string().min(1)]) },
     },
     async ({ n }) => text(tools.getPhase1Spec(state, n)),
   );
@@ -64,12 +65,11 @@ export function createServer(state: CorpusState): McpServer {
   );
 
   // Expose each Phase 1 spec as a pinnable resource.
-  const phase1Specs = state.docs.filter(
-    (d) => d.section === "phase1" && d.type === "md" && !d.path.toLowerCase().includes("hostile review"),
-  );
+  const phase1Specs = state.docs.filter(tools.isPhase1Spec);
   for (const d of phase1Specs) {
     const slug = (d.path.split("/").pop() ?? d.path)
       .replace(/\.md$/i, "")
+      .replace(/\s+spec$/i, "")
       .replace(/\s+/g, "-")
       .toLowerCase();
     server.registerResource(
