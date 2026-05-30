@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildState } from "./state.js";
-import { listDocs, searchDocs, readDoc, splitIntoParts } from "./tools.js";
+import { listDocs, searchDocs, readDoc, splitIntoParts, getPhase1Spec, getReadingGuide } from "./tools.js";
 import type { IndexedDoc } from "./types.js";
 
 const docs: IndexedDoc[] = [
@@ -52,5 +52,30 @@ describe("readDoc", () => {
   });
   it("errors with suggestions for an unknown path", () => {
     expect(readDoc(state, "docs/notes/pillarz.md")).toMatch(/^ERROR:/);
+  });
+});
+
+describe("getPhase1Spec", () => {
+  it("bundles the spec, its hostile review, and neighbors", () => {
+    const out = getPhase1Spec(state, 1);
+    expect(out).toContain("## Specification");
+    expect(out).toContain("connection gating"); // from spec body
+    expect(out).toContain("## Hostile Review");
+    expect(out).toContain("regress current peers"); // from review body
+    expect(out).toContain("Next: #2");
+  });
+
+  it("errors with the valid range for an out-of-range number", () => {
+    const out = getPhase1Spec(state, 99);
+    expect(out).toMatch(/^ERROR:/);
+    expect(out).toContain("1–2");
+  });
+});
+
+describe("getReadingGuide", () => {
+  it("includes the paper series order and phase 1 order", () => {
+    const out = getReadingGuide();
+    expect(out).toContain("GREENPAPER");
+    expect(out).toContain("11. Implementation Readiness Checklist");
   });
 });

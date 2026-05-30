@@ -65,3 +65,80 @@ export function readDoc(state: CorpusState, docPath: string, part = 1): string {
   const header = `# ${doc.title}\nPath: ${doc.path} | Section: ${doc.section} | Part ${p}/${parts.length}\n\n`;
   return header + parts[p - 1];
 }
+
+function phase1Number(p: string): number | null {
+  const file = p.split("/").pop() ?? "";
+  const m = file.match(/^(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function isHostileReview(p: string): boolean {
+  return p.toLowerCase().includes("hostile review");
+}
+
+export function getPhase1Spec(state: CorpusState, n: number): string {
+  const specs = state.docs
+    .filter(
+      (d) =>
+        d.section === "phase1" &&
+        d.type === "md" &&
+        !isHostileReview(d.path) &&
+        phase1Number(d.path) !== null,
+    )
+    .sort((a, b) => phase1Number(a.path)! - phase1Number(b.path)!);
+
+  if (specs.length === 0) return "ERROR: no Phase 1 specs found in the corpus.";
+
+  const numbers = specs.map((s) => phase1Number(s.path)!);
+  const min = Math.min(...numbers);
+  const max = Math.max(...numbers);
+  const spec = specs.find((s) => phase1Number(s.path) === n);
+  if (!spec) return `ERROR: no Phase 1 spec #${n}. Valid range: ${min}–${max}.`;
+
+  const review = state.docs.find(
+    (d) => d.section === "phase1" && isHostileReview(d.path) && phase1Number(d.path) === n,
+  );
+  const idx = specs.indexOf(spec);
+  const prev = specs[idx - 1];
+  const next = specs[idx + 1];
+  const nav =
+    (prev ? `Previous: #${phase1Number(prev.path)} ${prev.title}` : "Previous: (none)") +
+    " | " +
+    (next ? `Next: #${phase1Number(next.path)} ${next.title}` : "Next: (none)");
+
+  return [
+    `# Phase 1 — Spec #${n}: ${spec.title}`,
+    nav,
+    `\n## Specification (${spec.path})\n\n${spec.body}`,
+    review
+      ? `\n## Hostile Review (${review.path})\n\n${review.body}`
+      : `\n## Hostile Review\n\n(none found for spec #${n})`,
+  ].join("\n");
+}
+
+export function getReadingGuide(): string {
+  return [
+    "# Zenon Developer Commons — Reading Guide",
+    "",
+    "## Required first",
+    "Read docs/architecture/bounded-verification-boundries.md before relying on any model.",
+    "",
+    "## Paper series order",
+    "GREENPAPER → PURPLEPAPER → INDIGOPAPER → ORANGEPAPER",
+    "",
+    "## Phase 1 implementation order (use get_phase1_spec(n))",
+    "1. libp2p Host",
+    "2. Peer Service Discovery",
+    "3. Peer Reachability Verification",
+    "4. Peer Service Scoring",
+    "5. libp2p Sync Protocol",
+    "6. Sync Candidate Selection",
+    "7. Sync Request Scheduling",
+    "8. Initial Sync Strategy",
+    "9. libp2p Gossip Protocol",
+    "10. Current P2P Coexistence and Migration",
+    "11. Implementation Readiness Checklist",
+    "",
+    "For each spec: read the spec, then its hostile review, then resolve open assumptions before proceeding.",
+  ].join("\n");
+}
