@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { classifySection } from "./corpus.js";
+import { titleFromFilename, titleFromMarkdown } from "./corpus.js";
 
 describe("classifySection", () => {
   it("classifies phase 1 specs before generic specs", () => {
@@ -18,5 +19,28 @@ describe("classifySection", () => {
   it("treats root-level and unknown locations as papers", () => {
     expect(classifySection("ZENON_GREENPAPER.pdf")).toBe("papers");
     expect(classifySection("greenpaper_series/intro.md")).toBe("papers");
+  });
+});
+
+describe("titleFromFilename", () => {
+  it("strips extension and humanizes separators", () => {
+    expect(titleFromFilename("docs/notes/state-proof-bundles.md")).toBe("state proof bundles");
+    expect(titleFromFilename("ZENON_GREENPAPER.pdf")).toBe("ZENON GREENPAPER");
+  });
+});
+
+describe("titleFromMarkdown", () => {
+  it("prefers a frontmatter title", () => {
+    const raw = "---\ntitle: Real Title\n---\n# Other Heading\nbody";
+    expect(titleFromMarkdown(raw, "fallback")).toBe("Real Title");
+  });
+
+  it("falls back to the first H1 heading", () => {
+    const raw = "intro line\n\n# The Heading\n\nbody";
+    expect(titleFromMarkdown(raw, "fallback")).toBe("The Heading");
+  });
+
+  it("uses the fallback when neither is present", () => {
+    expect(titleFromMarkdown("just body text", "fallback")).toBe("fallback");
   });
 });
