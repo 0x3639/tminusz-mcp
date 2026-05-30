@@ -1,5 +1,7 @@
+import { readdirSync, statSync } from "node:fs";
+import path from "node:path";
 import matter from "gray-matter";
-import type { Section } from "./types.js";
+import type { DocEntry, DocType, Section } from "./types.js";
 
 export function titleFromFilename(relPath: string): string {
   const base = relPath.split("/").pop() ?? relPath;
@@ -29,4 +31,32 @@ export function classifySection(relPath: string): Section {
   if (p.startsWith("docs/specs/")) return "specs";
   if (p.startsWith("essays/")) return "essays";
   return "papers";
+}
+
+export function walkCorpus(root: string): DocEntry[] {
+  const out: DocEntry[] = [];
+
+  function recurse(dir: string): void {
+    for (const name of readdirSync(dir)) {
+      if (name === ".git") continue;
+      const abs = path.join(dir, name);
+      if (statSync(abs).isDirectory()) {
+        recurse(abs);
+        continue;
+      }
+      const ext = path.extname(name).toLowerCase();
+      const type: DocType | null = ext === ".md" ? "md" : ext === ".pdf" ? "pdf" : null;
+      if (!type) continue;
+      const rel = path.relative(root, abs).replace(/\\/g, "/");
+      out.push({
+        path: rel,
+        section: classifySection(rel),
+        type,
+        title: titleFromFilename(rel),
+      });
+    }
+  }
+
+  recurse(root);
+  return out.sort((a, b) => a.path.localeCompare(b.path));
 }

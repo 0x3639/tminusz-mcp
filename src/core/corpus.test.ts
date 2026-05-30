@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { classifySection } from "./corpus.js";
 import { titleFromFilename, titleFromMarkdown } from "./corpus.js";
+import { walkCorpus } from "./corpus.js";
+import { CORPUS_ROOT } from "./paths.js";
 
 describe("classifySection", () => {
   it("classifies phase 1 specs before generic specs", () => {
@@ -42,5 +44,27 @@ describe("titleFromMarkdown", () => {
 
   it("uses the fallback when neither is present", () => {
     expect(titleFromMarkdown("just body text", "fallback")).toBe("fallback");
+  });
+});
+
+describe("walkCorpus (real corpus)", () => {
+  const entries = walkCorpus(CORPUS_ROOT);
+
+  it("finds many markdown docs and some PDFs", () => {
+    expect(entries.length).toBeGreaterThan(100);
+    expect(entries.some((e) => e.type === "md")).toBe(true);
+    expect(entries.some((e) => e.type === "pdf")).toBe(true);
+  });
+
+  it("includes the phase 1 libp2p host spec, classified as phase1", () => {
+    const spec = entries.find((e) => e.path === "docs/specs/phase 1/01-libp2p host spec.md");
+    expect(spec).toBeDefined();
+    expect(spec?.section).toBe("phase1");
+  });
+
+  it("returns forward-slash relative paths sorted ascending", () => {
+    expect(entries.every((e) => !e.path.includes("\\"))).toBe(true);
+    const sorted = [...entries].sort((a, b) => a.path.localeCompare(b.path));
+    expect(entries.map((e) => e.path)).toEqual(sorted.map((e) => e.path));
   });
 });
