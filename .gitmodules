@@ -1,0 +1,3 @@
+[submodule "zenon-developer-commons"]
+	path = zenon-developer-commons
+	url = https://github.com/TminusZ/zenon-developer-commons.git
